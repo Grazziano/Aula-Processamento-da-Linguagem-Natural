@@ -4,10 +4,20 @@ import pandas as pd
 
 url = "https://institucional.ufpel.edu.br/unidades/id/443"
 
-data = {
-    'Professores': [],
-    'Cursos': [],
-}
+cursos_cod = [5700, 3900, 3910, 6100, 6400]
+url_cursos = "https://institucional.ufpel.edu.br/cursos/cod/"
+
+professores = []
+cursos = []
+turmas = []
+alunos = []
+
+def isnumber(value):
+    try:
+         float(value)
+    except ValueError:
+         return False
+    return True
 
 try:
     source = requests.get(url)
@@ -17,23 +27,33 @@ try:
 
     # print(soup.prettify())
 
-    print("Cursos de Graduação")
-    print("===================")
+    # captura cursos de graduação 
     for link in soup.select('div#graduacao')[0].find_all("li"):
-        # print(link.a.text)
-        data["Cursos"].append(link.a.text)
+        cursos.append(link.a.text)
 
-    print()
-
-    print("Professores de Graduação")
-    print("===================")
+    # captura nomes dos professores
     for link in soup.select('div#servidores')[0].find_all("td"):
-        # print(link.span.text)
-        data["Professores"].append(link.span.text)
+        professores.append(link.span.text)
     
+    # captura turmas e alunos de cada curso de graduação
+    for c in cursos_cod:
+        source = requests.get(f"{url_cursos}{c}")
+        source.raise_for_status()
+        soup = BeautifulSoup(source.text, "html.parser")
+
+        for td in soup.select('div#turmas')[0].find_all("td"):
+            if td.a != None:
+                turmas.append(td.a.text)
+
+        for td in soup.select('div#alunos')[0].find_all("td"):
+            if not isnumber(td.text):
+                alunos.append(td.text)
+
+    data = dict( cursos = cursos, professores = professores, turmas = turmas, alunos = alunos )
+
     # Criando o DataFrame
-    # df_projetos = pd.DataFrame(data)
+    df_projetos = pd.DataFrame(dict([ (k, pd.Series(v)) for k, v in data.items() ]))
     # Salvando o DataFrame em um arquivo CSV
-    # df_projetos.to_csv('/mnt/data/projetos_computacao.csv', index=False)
+    df_projetos.to_csv('data.csv', index=True)
 except Exception as e:
     print(e)
